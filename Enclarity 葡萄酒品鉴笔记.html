@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENCLARITY 葡萄酒品鉴笔记</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #1A365D;
+            --primary-light: #EBF4FF;
+            --secondary: #2B6CB0;
+            --accent: #48BB78;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fff;
+        }
+        .slider-container {
+            position: relative;
+            height: 6px;
+            background: #E5E7EB;
+            border-radius: 3px;
+        }
+        .slider-fill {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(to right, #EBF4FF, #1A365D);
+            border-radius: 3px;
+            transition: width 0.2s;
+        }
+        .slider-thumb {
+            position: absolute;
+            top: 50%;
+            width: 20px;
+            height: 20px;
+            background: #1A365D;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 10;
+        }
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #6B7280;
+        }
+        input[type="range"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 20;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-content {
+            background: #fff;
+            width: 100%;
+            max-height: 70vh;
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .option-item {
+            padding: 16px;
+            border-bottom: 1px solid #F3F4F6;
+            cursor: pointer;
+        }
+        .option-item:hover {
+            background: #F9FAFB;
+        }
+        .option-item.selected {
+            background: #EBF4FF;
+            color: #1A365D;
+            font-weight: 500;
+        }
+        .photo-upload {
+            border: 2px dashed #D1D5DB;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .photo-upload:hover {
+            border-color: #1A365D;
+            background: #EBF4FF;
+        }
+        .photo-preview {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .photo-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-delete {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 200;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .logo-circle {
+            display: inline-block;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1A365D, #2B6CB0, #48BB78);
+        }
+        .brand-gradient {
+            background: linear-gradient(135deg, #1A365D 0%, #2B6CB0 50%, #48BB78 100%);
+        }
+        .wine-label-scan {
+            position: relative;
+            overflow: hidden;
+        }
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #48BB78, transparent);
+            animation: scan 2s linear infinite;
+        }
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+        .copy-btn {
+            transition: all 0.2s;
+        }
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+        .tag-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: #EBF4FF;
+            color: #1A365D;
+            border-radius: 20px;
+            font-size: 13px;
+            margin: 4px;
+        }
+        .tag-delete {
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+        }
+        .select-wrapper {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航 -->
+        <div class="sticky top-0 bg-white z-50 border-b border-gray-100">
+            <div class="flex items-center justify-between px-4 py-3">
+                <button @click="goBack" class="flex items-center gap-1 text-gray-600 hover:text-[#1A365D]">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    <span class="text-sm font-medium" v-if="currentPage === 'new'">返回</span>
+                </button>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1">
+                        <div class="logo-circle w-2 h-2 opacity-30"></div>
+                        <div class="logo-circle w-3 h-3 opacity-50"></div>
+                        <div class="logo-circle w-5 h-5 opacity-70"></div>
+                        <div class="logo-circle w-3 h-3 opacity-50"></div>
+                        <div class="logo-circle w-2 h-2 opacity-30"></div>
+                    </div>
+                    <span class="text-xl font-bold text-[#1A365D] tracking-wide">ENCLARITY</span>
+                </div>
+                <div class="w-6"></div>
+            </div>
+        </div>
+
+        <!-- 笔记列表页 -->
+        <div v-if="currentPage === 'list'" class="pb-24">
+            <div class="text-center py-8 brand-gradient">
+                <h1 class="text-2xl font-bold text-white mb-2 tracking-wide">葡萄酒品鉴笔记</h1>
+                <p class="text-white/70 text-sm">专业品鉴 · 精准记录 · 智能分享</p>
+            </div>
+
+            <div class="p-4">
+                <button @click="goToNewNote" class="w-full py-4 brand-gradient text-white rounded-xl font-medium flex items-center justify-center gap-2 shadow-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    新建品鉴记录
+                </button>
+            </div>
+
+            <div class="px-4">
+                <div v-if="notes.length === 0" class="text-center py-20 text-gray-400">
+                    <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <p>还没有品鉴记录</p>
+                    <p class="text-sm mt-2">点击上方按钮开始记录</p>
+                </div>
+                <div v-else class="space-y-3">
+                    <div v-for="(note, index) in notes" :key="index" 
+                         class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1" @click="editNote(index)">
+                                <h3 class="font-medium text-gray-800">{{ note.wineName || note.wineCustomName || '未命名酒款' }}</h3>
+                                <p class="text-sm text-gray-500 mt-1">{{ note.date }} · {{ note.occasion || '未填写场合' }}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="text-right">
+                                    <div class="text-2xl font-bold text-[#1A365D]">{{ note.score }}</div>
+                                    <div class="text-xs text-gray-400">分</div>
+                                </div>
+                                <button @click="deleteNote(index)" class="text-gray-400 hover:text-red-500 p-1">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div v-if="note.variety || note.country" class="flex flex-wrap gap-2 mt-3">
+                            <span v-if="note.variety" class="text-xs px-3 py-1 bg-[#EBF4FF] rounded-full text-[#1A365D]">{{ note.variety }}</span>
+                            <span v-if="note.country" class="text-xs px-3 py-1 bg-gray-100 rounded-full text-gray-600">{{ note.country }}</span>
+                            <span v-if="note.region" class="text-xs px-3 py-1 bg-gray-100 rounded-full text-gray-600">{{ note.region }}</span>
+                        </div>
+                        <div class="flex gap-2 mt-4 pt-3 border-t border-gray-50">
+                            <button @click.stop="generateSocialCopy(index)" class="flex-1 py-2.5 text-sm bg-[#EBF4FF] text-[#1A365D] rounded-xl font-medium">
+                                📝 生成文案
+                            </button>
+                            <button @click.stop="generateShareCard(index)" class="flex-1 py-2.5 text-sm brand-gradient text-white rounded-xl font-medium">
+                                🎴 分享卡片
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新建/编辑笔记页 -->
+        <div v-if="currentPage === 'new'" class="pb-24">
+            <!-- 酒款头部 - 可编辑 -->
+            <div class="px-4 py-3 border-b border-gray-100">
+                <div class="flex items-center justify-between">
+                    <input type="text" v-model="wine.wineCustomName" placeholder="酒款1" 
+                           class="font-medium text-gray-700 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-[#1A365D] focus:outline-none px-1 py-0.5 w-32">
+                    <button @click="addWine" class="flex items-center gap-1 text-[#1A365D] text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        添加酒款
+                    </button>
+                </div>
+            </div>
+
+            <!-- 基本信息 -->
+            <div class="px-4 py-3">
+                <h2 class="text-base font-medium text-gray-800 mb-4">基本信息 <span class="text-sm text-gray-400 font-normal">Basic Information</span></h2>
+                
+                <div class="space-y-4">
+                    <!-- 品鉴时间 -->
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-2">
+                            品鉴时间 <span class="text-red-500">*</span>
+                        </label>
+                        <input type="date" v-model="wine.date" 
+                               class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#1A365D]">
+                    </div>
+
+                    <!-- 品鉴场合 -->
+                    <div class="select-wrapper" @click="openModal('occasion')">
+                        <label class="block text-sm text-gray-600 mb-2">品鉴场合</label>
+                        <div class="w-full px-4 py-3 border border-gray-200 rounded-xl flex justify-between items-center">
+                            <span :class="wine.occasion ? 'text-gray-800' : 'text-gray-400'">
+                                {{ wine.occasion || '请选择品鉴场合' }}
+                            </span>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 酒标AI识别 + 酒款名称 -->
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-2">
+                            酒款名称 <span class="text-red-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="text" v-model="wine.wineName" placeholder="请输入酒款名称或点击AI识别"
+                                   class="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:outline-none focus:border-[#1A365D]">
+                            <button @click="triggerLabelScan" class="absolute right-3 top-1/2 -translate-y-1/2 text-[#1A365D]" title="酒标AI识别">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <input ref="labelInput" type="file" accept="image/*" class="hidden" @change="handleLabelScan">
+                    </div>
+
+                    <!-- 酒颜色类型 -->
+                    <div class="select-wrapper" @click="openModal('colorType')">
+                        <label class="block text-sm text-gray-600 mb-2">
+                            酒颜色类型 <span class="text-red-500">*</span>
+                        </label>
+                        <div class="w-full px-4 py-3 border border-gray-200 rounded-xl flex justify-between items-center">
+                            <span :class="wine.colorType ? 'text-gray-800' : 'text-gray-400'">
+                                {{ wine.colorType || '请选择酒颜色类型' }}
+                            </span>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 酒性质类型 -->
+                    <div class="select-wrapper" @click="openModal('wineType')">
+                        <label class="block text-sm text-gray-600 mb-2">
+                            酒性质类型 <span class="text-red-500">*</span>
+                        </label>
+                        <div class="w-full px-4 py-3 border border-gray-200 rounded-xl flex justify-between items-center">
+                            <span :class="wine.wineType ? 'text-gray-800' : 'text-gray-400'">
+                                {{ wine.wineType || '请选择酒性质类型' }}
+                            </span>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 品种 -->
+                    <div class="select-wrapper" @click="openModal('variety')">
+                        <label class="block text-sm text-gray-600 mb-2">品种</label>
+                        <div class="w-full px-4 py-3 border border-gray-200 rounded-xl flex justify-between items-center">
+                            <span :class="wine.variety ? 'text-gray-800' : 'text-gray-400'">
+                                {{ wine.variety || '请选择品种' }}
+                            </span>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 国家 -->
+                    <div class="select-wrapper" @click="openModal('country')">
+                        <label class="block text-sm text-gray-600 mb-2">
+                            国家 <span class="text-red-500">*</span>
+                        </label>
+                        <div class="w-full px-4 py-3 border border-gray-200 rounded-xl flex justify-between items-center">
+                            <span :class="wine.country ? 'text-gray-800' : 'text-gray-400'">
+                                {{ wine.country || '请选择国家' }}
+                            </span>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 产区 -->
+                    <div class="select-wrapper" @click="wine.country ? openModal('region') : showToast('请先选择国家')">
+                        <label class="block text-sm text-gray-600 mb-2">
+                            产区 <span class="text-red-500">*</span>
+                        </label>
+                        <div class="w-full px-4 py-3 border border-gray-200 rounded-xl flex justify-between items-center">
+                            <span :class="wine.region ? 'text-gray-800' : 'text-gray-400'">
+                                {{ wine.region || (wine.country ? '请选择产区' : '请先选择国家') }}
+                            </span>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- 年份 -->
+                    <div class="select-wrapper" @click="openModal('vintage')">
+                        <label class="block text-sm text-gray-600 mb-2">
+                            年份 <span class="text-red-500">*</span>
+                        </label>
+                        <div class="w-full px-4 py-3 border border-gray-200 rounded-xl flex justify-between items-center">
+                            <span :class="wine.vintage ? 'text-gray-800' : 'text-gray-400'">
+                                {{ wine.vintage || '请选择年份' }}
+                            </span>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 色泽 -->
+            <div class="px-4 py-3 border-t border-gray-100">
+                <h2 class="text-base font-medium text-gray-800 mb-4">色泽 <span class="text-sm text-gray-400 font-normal">Appearance</span></h2>
+                
+                <div class="space-y-6">
+                    <!-- 颜色深度 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">颜色深度 <span class="text-red-500">*</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ getColorDepthLabel(wine.colorDepth) }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.colorDepth / 2 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.colorDepth / 2 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.colorDepth" min="0" max="2" step="1">
+                        </div>
+                        <div class="slider-labels">
+                            <span>浅</span>
+                            <span>中等</span>
+                            <span>深</span>
+                        </div>
+                    </div>
+
+                    <!-- 粘稠度 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">粘稠度 <span class="text-red-500">*</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ getViscosityLabel(wine.viscosity) }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.viscosity / 4 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.viscosity / 4 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.viscosity" min="0" max="4" step="1">
+                        </div>
+                        <div class="slider-labels">
+                            <span>弱</span>
+                            <span>中-</span>
+                            <span>中</span>
+                            <span>中+</span>
+                            <span>强</span>
+                        </div>
+                    </div>
+
+                    <!-- 气泡 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">气泡 <span class="text-red-500">*</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ getBubbleLabel(wine.bubble) }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.bubble / 2 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.bubble / 2 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.bubble" min="0" max="2" step="1">
+                        </div>
+                        <div class="slider-labels">
+                            <span>无</span>
+                            <span>微起泡</span>
+                            <span>高泡</span>
+                        </div>
+                    </div>
+
+                    <!-- 沉淀 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">沉淀 <span class="text-red-500">*</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ getSedimentLabel(wine.sediment) }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.sediment / 2 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.sediment / 2 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.sediment" min="0" max="2" step="1">
+                        </div>
+                        <div class="slider-labels">
+                            <span>无</span>
+                            <span>少量</span>
+                            <span>大量</span>
+                        </div>
+                    </div>
+
+                    <!-- 陈年状态 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">陈年状态 <span class="text-sm text-gray-400">Aging Stage</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ getAgingLabel(wine.aging) }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.aging / 5 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.aging / 5 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.aging" min="0" max="5" step="1">
+                        </div>
+                        <div class="slider-labels text-xs">
+                            <span>未知</span>
+                            <span>太年轻</span>
+                            <span>上升期</span>
+                            <span>巅峰期</span>
+                            <span>衰老期</span>
+                            <span>僵尸酒</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 香气 - 标签记录形式 -->
+            <div class="px-4 py-3 border-t border-gray-100">
+                <h2 class="text-base font-medium text-gray-800 mb-2">香气 <span class="text-sm text-gray-400 font-normal">Aroma</span></h2>
+                
+                <div class="space-y-4">
+                    <!-- 香气强度 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">香气强度</label>
+                            <span class="text-[#1A365D] font-medium">{{ getAromaIntensityLabel(wine.aromaIntensity) }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.aromaIntensity / 4 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.aromaIntensity / 4 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.aromaIntensity" min="0" max="4" step="1">
+                        </div>
+                        <div class="slider-labels">
+                            <span>弱</span>
+                            <span>中-</span>
+                            <span>中</span>
+                            <span>中+</span>
+                            <span>强</span>
+                        </div>
+                    </div>
+
+                    <!-- 香气标签记录 -->
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-2">香气标签</label>
+                        <div class="flex flex-wrap gap-2 mb-3 min-h-[40px]">
+                            <div v-for="(tag, index) in wine.aromaTags" :key="index" class="tag-item">
+                                {{ tag }}
+                                <span class="tag-delete" @click="removeAromaTag(index)">×</span>
+                            </div>
+                            <span v-if="wine.aromaTags.length === 0" class="text-gray-400 text-sm py-1">暂无香气标签，请在下方添加</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" v-model="newAromaTag" placeholder="输入香气描述，如：黑醋栗、香草、橡木..."
+                                   @keyup.enter="addAromaTag"
+                                   class="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-[#1A365D] text-sm">
+                            <button @click="addAromaTag" class="px-4 py-2.5 bg-[#EBF4FF] text-[#1A365D] rounded-xl text-sm font-medium">
+                                添加
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 快捷香气标签 -->
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-2">常见香气（点击添加）</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button v-for="tag in commonAromas" :key="tag" 
+                                    @click="addCommonAroma(tag)"
+                                    class="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-full text-xs hover:bg-[#EBF4FF] hover:text-[#1A365D] transition-colors">
+                                {{ tag }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结构 -->
+            <div class="px-4 py-3 border-t border-gray-100">
+                <h2 class="text-base font-medium text-gray-800 mb-2">结构 <span class="text-sm text-gray-400 font-normal">Structure</span></h2>
+                
+                <div class="space-y-6">
+                    <!-- 甜度 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">甜度 <span class="text-sm text-gray-400">Sugar</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ getSugarLabel(wine.sugar) }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.sugar / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.sugar / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.sugar" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">甜度类型取决于含糖量和酸的平衡</p>
+                    </div>
+
+                    <!-- 酒体 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">酒体 <span class="text-sm text-gray-400">Body</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ wine.body === 0 ? '未填' : wine.body }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.body / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.body / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.body" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">酒在口中感觉厚重程度</p>
+                    </div>
+
+                    <!-- 酸度 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">酸度 <span class="text-sm text-gray-400">Acidity</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ wine.acidity === 0 ? '未填' : wine.acidity }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.acidity / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.acidity / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.acidity" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">葡萄酒结构的一部分，不只是味道的酸</p>
+                    </div>
+
+                    <!-- 单宁 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">单宁 <span class="text-sm text-gray-400">Tannin</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ wine.tannin === 0 ? '未填' : wine.tannin }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.tannin / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.tannin / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.tannin" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">单宁让嘴里涩涩的，醒酒后变成丝般柔滑</p>
+                    </div>
+
+                    <!-- 酒精 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">酒精 <span class="text-sm text-gray-400">Alcohol</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ wine.alcohol === 0 ? '无' : wine.alcohol }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.alcohol / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.alcohol / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.alcohol" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">酒的特征之一，与品质无关</p>
+                    </div>
+
+                    <!-- 集中度 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">集中度 <span class="text-sm text-gray-400">Intensity</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ wine.intensity === 0 ? '未填' : wine.intensity }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.intensity / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.intensity / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.intensity" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">香气和味道的强度也是结构一部分，不是酒精强度</p>
+                    </div>
+
+                    <!-- 余味 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">余味 <span class="text-sm text-gray-400">Length</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ wine.length === 0 ? '未填' : wine.length }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.length / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.length / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.length" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">整体味道的持久性，不只是回甘、酸或单宁</p>
+                    </div>
+
+                    <!-- 精准度 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">精准度 <span class="text-sm text-gray-400">Precision</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ wine.precision === 0 ? '未填' : wine.precision }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.precision / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.precision / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.precision" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">描述品鉴时感知的精准程度</p>
+                    </div>
+
+                    <!-- 典型性 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="text-sm text-gray-600">典型性 <span class="text-sm text-gray-400">Typicity</span></label>
+                            <span class="text-[#1A365D] font-medium">{{ wine.typicity === 0 ? '未填' : wine.typicity }}</span>
+                        </div>
+                        <div class="slider-container">
+                            <div class="slider-fill" :style="{ width: (wine.typicity / 10 * 100) + '%' }"></div>
+                            <div class="slider-thumb" :style="{ left: (wine.typicity / 10 * 100) + '%' }"></div>
+                            <input type="range" v-model.number="wine.typicity" min="0" max="10" step="1">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">描述是否符合该产区/品种的典型特征</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 个人打分 -->
+            <div class="px-4 py-3 border-t border-gray-100">
+                <h2 class="text-base font-medium text-gray-800 mb-2">个人打分 <span class="text-sm text-gray-400 font-normal">Your Score</span></h2>
+                
+                <div class="pt-4 pb-2">
+                    <div class="text-center mb-4">
+                        <span class="text-4xl font-bold text-[#1A365D]">{{ wine.score }}</span>
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-fill" :style="{ width: ((wine.score - 50) / 50 * 100) + '%' }"></div>
+                        <div class="slider-thumb" :style="{ left: ((wine.score - 50) / 50 * 100) + '%' }"></div>
+                        <input type="range" v-model.number="wine.score" min="50" max="100" step="1">
+                    </div>
+                    <div class="slider-labels mt-3">
+                        <span>50</span>
+                        <span>75</span>
+                        <span>100</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 品酒小记 -->
+            <div class="px-4 py-3 border-t border-gray-100">
+                <h2 class="text-base font-medium text-gray-800 mb-2">品酒小记 <span class="text-sm text-gray-400 font-normal">Additional Thought</span></h2>
+                <textarea v-model="wine.notes" rows="4" maxlength="1000"
+                          placeholder="记录你的品鉴感受、印象、配餐建议等..."
+                          class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#1A365D] resize-none"></textarea>
+                <div class="text-right text-xs text-gray-400 mt-1">{{ wine.notes.length }}/1000</div>
+            </div>
+
+            <!-- 品酒照片 -->
+            <div class="px-4 py-3 border-t border-gray-100 mb-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-medium text-gray-800">品酒照片 <span class="text-sm text-gray-400 font-normal">Your Photo</span></h2>
+                    <span class="text-sm text-gray-500">{{ wine.photos.length }}/3 张</span>
+                </div>
+                
+                <div class="flex gap-3 flex-wrap">
+                    <div v-for="(photo, index) in wine.photos" :key="index" class="photo-preview">
+                        <img :src="photo" alt="品酒照片">
+                        <div class="photo-delete" @click.stop="removePhoto(index)">×</div>
+                    </div>
+                    <div v-if="wine.photos.length < 3" @click="triggerPhotoUpload" class="photo-upload w-[100px] h-[100px] flex flex-col items-center justify-center">
+                        <svg class="w-8 h-8 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        </svg>
+                        <span class="text-xs text-gray-400">添加照片</span>
+                    </div>
+                </div>
+                <input ref="photoInput" type="file" accept="image/*" multiple class="hidden" @change="handlePhotoUpload">
+            </div>
+
+            <!-- 底部按钮 -->
+            <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3">
+                <button @click="saveDraft" class="flex-1 py-4 bg-gray-100 text-gray-600 rounded-xl font-medium">
+                    保存草稿
+                </button>
+                <button @click="completeNote" class="flex-1 py-4 brand-gradient text-white rounded-xl font-medium shadow-lg">
+                    {{ editingIndex >= 0 ? '更新记录' : '完成品鉴' }}
+                </button>
+            </div>
+        </div>
+
+        <!-- 文案生成弹窗 -->
+        <div v-if="socialModal.show" class="modal-overlay" @click.self="closeSocialModal">
+            <div class="modal-content max-w-lg mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">生成分享文案</h3>
+                    <button @click="closeSocialModal" class="text-gray-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex gap-2 mb-4">
+                    <button :class="['flex-1 py-2.5 rounded-xl text-sm font-medium', socialModal.type === 'moments' ? 'brand-gradient text-white shadow-md' : 'bg-gray-100 text-gray-600']"
+                            @click="socialModal.type = 'moments'">
+                        朋友圈文案
+                    </button>
+                    <button :class="['flex-1 py-2.5 rounded-xl text-sm font-medium', socialModal.type === 'douyin' ? 'brand-gradient text-white shadow-md' : 'bg-gray-100 text-gray-600']"
+                            @click="socialModal.type = 'douyin'">
+                        抖音口播
+                    </button>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                    <pre class="text-sm text-gray-700 whitespace-pre-wrap font-sans">{{ socialModal.content }}</pre>
+                </div>
+
+                <div class="flex gap-3">
+                    <button @click="copyToClipboard" class="copy-btn flex-1 py-3.5 brand-gradient text-white rounded-xl font-medium shadow-md">
+                        复制文案
+                    </button>
+                    <button @click="regenerateSocialCopy" class="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-xl font-medium">
+                        重新生成
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分享卡片弹窗 -->
+        <div v-if="shareCardModal.show" class="modal-overlay" @click.self="closeShareCardModal">
+            <div class="modal-content max-w-lg mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800">精美分享卡片</h3>
+                    <button @click="closeShareCardModal" class="text-gray-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- 分享卡片预览 -->
+                <div ref="shareCard" class="brand-gradient rounded-2xl p-6 mb-4">
+                    <div class="text-center mb-6">
+                        <div class="flex items-center justify-center gap-1 mb-2">
+                            <div class="logo-circle w-2 h-2 opacity-30"></div>
+                            <div class="logo-circle w-3 h-3 opacity-50"></div>
+                            <div class="logo-circle w-5 h-5 opacity-70"></div>
+                            <div class="logo-circle w-3 h-3 opacity-50"></div>
+                            <div class="logo-circle w-2 h-2 opacity-30"></div>
+                        </div>
+                        <span class="text-2xl font-bold text-white tracking-wide">ENCLARITY</span>
+                        <p class="text-white/70 text-sm mt-1">专业葡萄酒品鉴记录</p>
+                    </div>
+
+                    <div class="bg-white/10 backdrop-blur rounded-xl p-4 mb-4">
+                        <h2 class="text-2xl font-bold text-white mb-2">{{ shareCardModal.note.wineName || shareCardModal.note.wineCustomName || '未命名酒款' }}</h2>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <span v-if="shareCardModal.note.variety" class="text-sm px-3 py-1 bg-white/20 rounded-full text-white">{{ shareCardModal.note.variety }}</span>
+                            <span v-if="shareCardModal.note.country" class="text-sm px-3 py-1 bg-white/20 rounded-full text-white">{{ shareCardModal.note.country }}</span>
+                            <span v-if="shareCardModal.note.vintage" class="text-sm px-3 py-1 bg-white/20 rounded-full text-white">{{ shareCardModal.note.vintage }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-white/70 text-sm">{{ shareCardModal.note.date }} · {{ shareCardModal.note.occasion || '未填写场合' }}</span>
+                            <div class="text-right">
+                                <span class="text-4xl font-bold text-white">{{ shareCardModal.note.score }}</span>
+                                <span class="text-white/70 text-sm ml-1">分</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="shareCardModal.note.notes || shareCardModal.note.aromaTags?.length > 0" class="bg-white/10 backdrop-blur rounded-xl p-4 mb-4">
+                        <div v-if="shareCardModal.note.aromaTags && shareCardModal.note.aromaTags.length > 0" class="flex flex-wrap gap-2 mb-3">
+                            <span v-for="tag in shareCardModal.note.aromaTags" :key="tag" class="text-xs px-2 py-1 bg-white/20 rounded-full text-white">{{ tag }}</span>
+                        </div>
+                        <p v-if="shareCardModal.note.notes" class="text-white/90 text-sm leading-relaxed">{{ shareCardModal.note.notes }}</p>
+                    </div>
+
+                    <div class="text-center text-white/50 text-xs">
+                        Powered by ENCLARITY
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button @click="downloadShareCard" class="copy-btn flex-1 py-3.5 brand-gradient text-white rounded-xl font-medium shadow-md">
+                        保存图片
+                    </button>
+                    <button @click="closeShareCardModal" class="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-xl font-medium">
+                        关闭
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 酒标识别中弹窗 -->
+        <div v-if="labelScanning" class="modal-overlay">
+            <div class="modal-content max-w-sm mx-auto text-center">
+                <div class="py-8">
+                    <div class="w-20 h-20 mx-auto mb-5 rounded-full bg-[#EBF4FF] flex items-center justify-center wine-label-scan">
+                        <div class="scan-line"></div>
+                        <svg class="w-10 h-10 text-[#1A365D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">酒标识别中</h3>
+                    <p class="text-gray-500">AI正在分析酒标信息，请稍候...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选择弹窗 -->
+        <div v-if="modal.show" class="modal-overlay" @click.self="closeModal">
+            <div class="modal-content">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-800">{{ modal.title }}</h3>
+                    <button @click="closeModal" class="text-gray-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <!-- 自定义输入框 -->
+                <div class="mb-4">
+                    <input type="text" v-model="customInputValue" :placeholder="'自定义输入 ' + modal.title" 
+                           @keyup.enter="confirmCustomInput"
+                           class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-[#1A365D] text-sm">
+                    <button @click="confirmCustomInput" class="w-full mt-2 py-2.5 bg-[#EBF4FF] text-[#1A365D] rounded-xl text-sm font-medium">
+                        确认自定义输入
+                    </button>
+                </div>
+                
+                <div class="border-t border-gray-100 pt-2">
+                    <div v-for="(item, index) in modal.options" :key="index"
+                         :class="['option-item', modal.selected === item ? 'selected' : '']"
+                         @click="selectOption(item)">
+                        {{ item }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 删除确认弹窗 -->
+        <div v-if="deleteModal.show" class="modal-overlay" @click.self="deleteModal.show = false">
+            <div class="modal-content max-w-sm mx-auto text-center">
+                <div class="py-6">
+                    <svg class="w-16 h-16 mx-auto mb-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">确认删除？</h3>
+                    <p class="text-gray-500 mb-6">删除后将无法恢复此条品鉴记录</p>
+                    <div class="flex gap-3">
+                        <button @click="deleteModal.show = false" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-medium">
+                            取消
+                        </button>
+                        <button @click="confirmDelete" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-medium">
+                            确认删除
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast提示 -->
+        <div v-if="toast.show" class="toast">{{ toast.message }}</div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        
+        createApp({
+            data() {
+                return {
+                    currentPage: 'list',
+                    currentWineIndex: 0,
+                    editingIndex: -1,
+                    notes: [],
+                    wine: {
+                        wineCustomName: '',
+                        date: new Date().toISOString().split('T')[0],
+                        occasion: '',
+                        wineName: '',
+                        colorType: '',
+                        wineType: '静止酒',
+                        variety: '',
+                        country: '',
+                        region: '',
+                        vintage: '',
+                        colorDepth: 1,
+                        viscosity: 2,
+                        bubble: 0,
+                        sediment: 0,
+                        aging: 0,
+                        aromaIntensity: 2,
+                        aromaTags: [],
+                        sugar: 0,
+                        body: 0,
+                        acidity: 0,
+                        tannin: 0,
+                        alcohol: 0,
+                        intensity: 0,
+                        length: 0,
+                        precision: 0,
+                        typicity: 0,
+                        score: 75,
+                        notes: '',
+                        photos: []
+                    },
+                    newAromaTag: '',
+                    commonAromas: ['黑醋栗', '樱桃', '草莓', '覆盆子', '蓝莓', '黑莓', '李子', '桑葚', '花香', '玫瑰', '紫罗兰', '茉莉', '香料', '胡椒', '肉桂', '丁香', '香草', '橡木', '烟熏', '烤面包', '咖啡', '巧克力', '坚果', '杏仁', '核桃', '榛子', '动物', '皮革', '皮毛', '野味', '植物', '青草', '薄荷', '桉树', '柑橘', '柠檬', '橙子', '葡萄柚', '热带水果', '芒果', '菠萝', '荔枝'],
+                    modal: {
+                        show: false,
+                        title: '',
+                        type: '',
+                        options: [],
+                        selected: ''
+                    },
+                    customInputValue: '',
+                    socialModal: {
+                        show: false,
+                        type: 'moments',
+                        content: '',
+                        noteIndex: 0
+                    },
+                    shareCardModal: {
+                        show: false,
+                        note: {}
+                    },
+                    deleteModal: {
+                        show: false,
+                        index: -1
+                    },
+                    labelScanning: false,
+                    toast: {
+                        show: false,
+                        message: ''
+                    }
+                };
+            },
+            computed: {},
+            mounted() {
+                this.loadNotes();
+            },
+            methods: {
+                // 导航
+                goBack() {
+                    if (this.currentPage === 'new') {
+                        if (confirm('确定要离开吗？未保存的内容将丢失')) {
+                            this.currentPage = 'list';
+                            this.editingIndex = -1;
+                        }
+                    }
+                },
+                goToNewNote() {
+                    this.resetWine();
+                    this.editingIndex = -1;
+                    this.currentPage = 'new';
+                },
+                editNote(index) {
+                    this.wine = JSON.parse(JSON.stringify(this.notes[index]));
+                    this.editingIndex = index;
+                    this.currentPage = 'new';
+                },
+                deleteNote(index) {
+                    this.deleteModal = {
+                        show: true,
+                        index: index
+                    };
+                },
+                confirmDelete() {
+                    this.notes.splice(this.deleteModal.index, 1);
+                    this.saveToStorage();
+                    this.deleteModal.show = false;
+                    this.showToast('已删除品鉴记录');
+                },
+
+                // 酒款管理
+                addWine() {
+                    this.showToast('多酒款功能开发中');
+                },
+                resetWine() {
+                    this.wine = {
+                        wineCustomName: '',
+                        date: new Date().toISOString().split('T')[0],
+                        occasion: '',
+                        wineName: '',
+                        colorType: '',
+                        wineType: '静止酒',
+                        variety: '',
+                        country: '',
+                        region: '',
+                        vintage: '',
+                        colorDepth: 1,
+                        viscosity: 2,
+                        bubble: 0,
+                        sediment: 0,
+                        aging: 0,
+                        aromaIntensity: 2,
+                        aromaTags: [],
+                        sugar: 0,
+                        body: 0,
+                        acidity: 0,
+                        tannin: 0,
+                        alcohol: 0,
+                        intensity: 0,
+                        length: 0,
+                        precision: 0,
+                        typicity: 0,
+                        score: 75,
+                        notes: '',
+                        photos: []
+                    };
+                    this.newAromaTag = '';
+                },
+
+                // 滑块标签
+                getColorDepthLabel(val) {
+                    return ['浅', '中等', '深'][val];
+                },
+                getViscosityLabel(val) {
+                    return ['弱', '中-', '中', '中+', '强'][val];
+                },
+                getBubbleLabel(val) {
+                    return ['无', '微起泡', '高泡'][val];
+                },
+                getSedimentLabel(val) {
+                    return ['无', '少量', '大量'][val];
+                },
+                getAgingLabel(val) {
+                    return ['未知', '太年轻', '适饮上升期', '适饮巅峰期', '适饮衰老期', '太老了僵尸酒'][val];
+                },
+                getAromaIntensityLabel(val) {
+                    return ['弱', '中-', '中', '中+', '强'][val];
+                },
+                getSugarLabel(val) {
+                    const labels = ['干型 0', '干型 1', '干型 2', '半干 3', '半干 4', '半甜 5', '半甜 6', '甜型 7', '甜型 8', '甜型 9', '极甜 10'];
+                    return labels[val];
+                },
+
+                // 香气标签管理
+                addAromaTag() {
+                    const tag = this.newAromaTag.trim();
+                    if (tag && !this.wine.aromaTags.includes(tag)) {
+                        this.wine.aromaTags.push(tag);
+                        this.newAromaTag = '';
+                    }
+                },
+                removeAromaTag(index) {
+                    this.wine.aromaTags.splice(index, 1);
+                },
+                addCommonAroma(tag) {
+                    if (!this.wine.aromaTags.includes(tag)) {
+                        this.wine.aromaTags.push(tag);
+                    }
+                },
+
+                // 弹窗 - 修复了打开逻辑
+                openModal(type) {
+                    const configs = {
+                        occasion: {
+                            title: '选择品鉴场合',
+                            options: ['家常喝酒', '朋友聚会', '课程/训练', '品鉴会', '酒展', '大师班', '样品选酒记录']
+                        },
+                        colorType: {
+                            title: '选择酒颜色类型',
+                            options: ['红葡萄酒', '白葡萄酒', '桃红葡萄酒', '橙酒']
+                        },
+                        wineType: {
+                            title: '选择酒性质类型',
+                            options: ['静止酒', '起泡酒', '加强酒', '贵腐', '冰酒']
+                        },
+                        variety: {
+                            title: '选择品种',
+                            options: ['赤霞珠', '梅洛', '黑皮诺', '西拉', '歌海娜', '霞多丽', '长相思', '雷司令', '琼瑶浆', '维欧尼', '品丽珠', '马尔贝克', '丹魄', '桑娇维塞', '内比奥罗', '巴贝拉']
+                        },
+                        country: {
+                            title: '选择国家',
+                            options: ['法国', '意大利', '西班牙', '德国', '澳大利亚', '智利', '阿根廷', '美国', '新西兰', '南非', '中国', '葡萄牙', '奥地利', '匈牙利']
+                        },
+                        region: {
+                            title: '选择产区',
+                            options: this.getRegions()
+                        },
+                        vintage: {
+                            title: '选择年份',
+                            options: this.generateVintages()
+                        }
+                    };
+                    const config = configs[type];
+                    this.modal = {
+                        show: true,
+                        title: config.title,
+                        type: type,
+                        options: config.options,
+                        selected: this.wine[type]
+                    };
+                    this.customInputValue = '';
+                },
+                closeModal() {
+                    this.modal.show = false;
+                    this.customInputValue = '';
+                },
+                selectOption(item) {
+                    const map = {
+                        occasion: 'occasion',
+                        colorType: 'colorType',
+                        wineType: 'wineType',
+                        variety: 'variety',
+                        country: 'country',
+                        region: 'region',
+                        vintage: 'vintage'
+                    };
+                    if (map[this.modal.type]) {
+                        this.wine[map[this.modal.type]] = item;
+                    }
+                    this.closeModal();
+                },
+                confirmCustomInput() {
+                    const value = this.customInputValue.trim();
+                    if (value) {
+                        const map = {
+                            occasion: 'occasion',
+                            colorType: 'colorType',
+                            wineType: 'wineType',
+                            variety: 'variety',
+                            country: 'country',
+                            region: 'region',
+                            vintage: 'vintage'
+                        };
+                        if (map[this.modal.type]) {
+                            this.wine[map[this.modal.type]] = value;
+                        }
+                        this.closeModal();
+                        this.showToast('已添加自定义选项');
+                    }
+                },
+                getRegions() {
+                    const regions = {
+                        '法国': ['波尔多', '勃艮第', '罗纳河谷', '香槟', '卢瓦尔河谷', '阿尔萨斯', '普罗旺斯', '朗格多克-露喜龙'],
+                        '意大利': ['托斯卡纳', '皮埃蒙特', '威尼托', '阿玛罗尼', '基安蒂', '巴罗洛', '巴巴莱斯科'],
+                        '西班牙': ['里奥哈', '杜罗河谷', 'Priorat', 'Ribera del Duero'],
+                        '德国': ['摩泽尔', '莱茵高', '法尔兹', '那赫'],
+                        '澳大利亚': ['巴罗萨谷', '库纳瓦拉', '克莱尔谷', '玛格丽特河'],
+                        '智利': ['迈坡谷', '拉贝尔谷', '马乌莱谷', '空加瓜谷'],
+                        '阿根廷': ['门多萨', '萨尔塔'],
+                        '美国': ['纳帕谷', '索诺玛', '俄勒冈', '华盛顿州'],
+                        '新西兰': ['马尔堡', '中奥塔哥'],
+                        '南非': ['斯特兰德', '帕尔', '康斯坦提亚'],
+                        '中国': ['宁夏', '山东', '新疆', '河北'],
+                        '葡萄牙': ['波特', '杜罗河谷', '阿连特茹'],
+                        '奥地利': ['瓦豪', '坎普谷', '威非尔特'],
+                        '匈牙利': ['托卡伊', '埃格尔']
+                    };
+                    return regions[this.wine.country] || ['请先选择国家'];
+                },
+                generateVintages() {
+                    const current = new Date().getFullYear();
+                    const vintages = [];
+                    for (let i = 0; i < 30; i++) {
+                        vintages.push((current - i).toString());
+                    }
+                    return vintages;
+                },
+
+                // 照片上传
+                triggerPhotoUpload() {
+                    this.$refs.photoInput.click();
+                },
+                handlePhotoUpload(e) {
+                    const files = Array.from(e.target.files);
+                    const remaining = 3 - this.wine.photos.length;
+                    const toProcess = files.slice(0, remaining);
+                    
+                    toProcess.forEach(file => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.wine.photos.push(e.target.result);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                },
+                removePhoto(index) {
+                    this.wine.photos.splice(index, 1);
+                },
+
+                // 酒标AI识别
+                triggerLabelScan() {
+                    this.$refs.labelInput.click();
+                },
+                handleLabelScan(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+
+                    this.labelScanning = true;
+
+                    // 模拟AI识别过程
+                    setTimeout(() => {
+                        this.labelScanning = false;
+                        
+                        // 模拟识别结果
+                        const mockResults = [
+                            { wineName: '拉菲古堡 Château Lafite Rothschild', country: '法国', region: '波尔多', variety: '赤霞珠', vintage: '2018' },
+                            { wineName: '奔富 Bin 389 Penfolds', country: '澳大利亚', region: '巴罗萨谷', variety: '西拉', vintage: '2020' },
+                            { wineName: 'Opus One 作品一号', country: '美国', region: '纳帕谷', variety: '赤霞珠', vintage: '2019' }
+                        ];
+                        
+                        const result = mockResults[Math.floor(Math.random() * mockResults.length)];
+                        this.wine.wineName = result.wineName;
+                        this.wine.country = result.country;
+                        this.wine.region = result.region;
+                        this.wine.variety = result.variety;
+                        this.wine.vintage = result.vintage;
+                        
+                        this.showToast('酒标识别成功！已自动填写信息');
+                    }, 2000);
+                },
+
+                // 生成社交媒体文案
+                generateSocialCopy(index) {
+                    this.socialModal.noteIndex = index;
+                    this.socialModal.show = true;
+                    this.regenerateSocialCopy();
+                },
+                regenerateSocialCopy() {
+                    const note = this.notes[this.socialModal.noteIndex];
+                    if (this.socialModal.type === 'moments') {
+                        this.socialModal.content = this.generateMomentsCopy(note);
+                    } else {
+                        this.socialModal.content = this.generateDouyinCopy(note);
+                    }
+                },
+                generateMomentsCopy(note) {
+                    const wineInfo = [note.variety, note.country, note.region].filter(Boolean).join(' · ');
+                    const aromas = note.aromaTags && note.aromaTags.length > 0 ? note.aromaTags.join('、') : '丰富复杂';
+                    
+                    return `🍷 ${note.wineName || note.wineCustomName || '今日品酒记录'}
+📍 ${wineInfo || '未填写产地信息'}
+📅 ${note.date} ${note.occasion ? '· ' + note.occasion : ''}
+⭐ 评分: ${note.score}/100
+🌸 香气: ${aromas}
+
+${note.notes || '一款值得细细品味的酒，香气复杂层次分明，入口圆润饱满，余味悠长。'}
+
+#葡萄酒品鉴 #${note.variety || '红酒'} #ENCLARITY`;
+                },
+                generateDouyinCopy(note) {
+                    const aromas = note.aromaTags && note.aromaTags.length > 0 ? note.aromaTags.join('、') : '丰富复杂';
+                    
+                    return `大家好，今天给大家品鉴的是${note.wineName || note.wineCustomName || '这款酒'}！
+
+这款来自${note.country || '知名产区'}${note.region ? ' ' + note.region : ''}的${note.variety || '红酒'}，
+它的香气非常有特点：${aromas}
+我给它打了${note.score}分！
+
+${note.notes || '香气非常奔放，果香浓郁，入口丝滑，单宁成熟，余味悠长，是一款非常值得尝试的酒！'}
+
+喜欢葡萄酒的朋友记得关注我，带你喝遍天下好酒！
+
+#葡萄酒 #品酒 #ENCLARITY`;
+                },
+                closeSocialModal() {
+                    this.socialModal.show = false;
+                },
+                copyToClipboard() {
+                    navigator.clipboard.writeText(this.socialModal.content).then(() => {
+                        this.showToast('文案已复制到剪贴板');
+                    }).catch(() => {
+                        this.showToast('复制失败，请手动复制');
+                    });
+                },
+
+                // 生成分享卡片
+                generateShareCard(index) {
+                    this.shareCardModal.note = { ...this.notes[index] };
+                    this.shareCardModal.show = true;
+                },
+                closeShareCardModal() {
+                    this.shareCardModal.show = false;
+                },
+                downloadShareCard() {
+                    this.showToast('正在生成图片...');
+                    
+                    setTimeout(() => {
+                        html2canvas(this.$refs.shareCard, {
+                            backgroundColor: null,
+                            scale: 2
+                        }).then(canvas => {
+                            const link = document.createElement('a');
+                            link.download = `ENCLARITY品鉴记录_${Date.now()}.png`;
+                            link.href = canvas.toDataURL('image/png');
+                            link.click();
+                            this.showToast('图片已保存！');
+                        }).catch(() => {
+                            this.showToast('保存失败，请截图保存');
+                        });
+                    }, 500);
+                },
+
+                // 保存 - 重点优化，确保数据可靠
+                saveDraft() {
+                    this.saveToStorage();
+                    this.showToast('已保存草稿');
+                    this.currentPage = 'list';
+                    this.editingIndex = -1;
+                },
+                completeNote() {
+                    if (!this.wine.wineName && !this.wine.wineCustomName) {
+                        this.showToast('请输入酒款名称');
+                        return;
+                    }
+                    
+                    if (this.editingIndex >= 0) {
+                        // 更新现有记录
+                        this.notes[this.editingIndex] = JSON.parse(JSON.stringify(this.wine));
+                        this.showToast('品鉴记录已更新！');
+                    } else {
+                        // 新增记录
+                        const newNote = JSON.parse(JSON.stringify(this.wine));
+                        newNote.completedAt = new Date().toISOString();
+                        this.notes.unshift(newNote);
+                        this.showToast('品鉴记录已保存！');
+                    }
+                    
+                    this.saveToStorage();
+                    
+                    setTimeout(() => {
+                        this.currentPage = 'list';
+                        this.editingIndex = -1;
+                    }, 800);
+                },
+                saveToStorage() {
+                    try {
+                        const dataToSave = JSON.stringify(this.notes);
+                        localStorage.setItem('wineNotes', dataToSave);
+                        console.log('已保存到本地存储，共', this.notes.length, '条记录，数据大小:', (dataToSave.length / 1024).toFixed(2), 'KB');
+                    } catch (e) {
+                        console.error('保存失败:', e);
+                        this.showToast('保存失败，可能是存储已满');
+                    }
+                },
+                loadNotes() {
+                    try {
+                        const saved = localStorage.getItem('wineNotes');
+                        if (saved) {
+                            this.notes = JSON.parse(saved);
+                            console.log('已加载本地存储，共', this.notes.length, '条记录');
+                        }
+                    } catch (e) {
+                        console.error('加载失败:', e);
+                        this.notes = [];
+                    }
+                },
+
+                // 工具
+                showToast(message) {
+                    this.toast = { show: true, message: message };
+                    setTimeout(() => {
+                        this.toast.show = false;
+                    }, 2000);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
